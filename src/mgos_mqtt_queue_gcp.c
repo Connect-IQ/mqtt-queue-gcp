@@ -14,7 +14,7 @@
 #include "mgos_timers.h"
 
 static int s_max_queue = 10;
-static int s_current_queue_index = NULL;
+static int s_current_queue_index = 0;
 static bool s_processing_queue = false;
 static mgos_timer_id s_queue_timer_id = MGOS_INVALID_TIMER_ID;
 static const char *s_data_path = "";
@@ -187,7 +187,7 @@ bool mgos_mqtt_queue_gcp_send_event_subf(const char *subfolder, const char *json
   va_list ap;
   va_start(ap, json_fmt);
 
-  if ( ! mgos_gcp_is_connected() ){
+  if ( ! mgos_mqtt_global_is_connected() ){
       LOG(LL_DEBUG, ("%s", "GCP MQTT QUEUE NOT CONNECTED, QUEUE FILE"));
       add_to_queue( json_fmt, ap, subfolder );
   } else {
