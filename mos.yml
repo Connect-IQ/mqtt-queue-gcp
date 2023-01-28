@@ -23,12 +23,11 @@ config_schema:
   - [ "gcp.queue.data", "s", "", {title: "Custom location to store queue files (only should be used if you have created ext partition that is mounted)"}]
 
 libs:
-  - origin: https://github.com/mongoose-os-libs/gcp
+  - location: https://github.com/mongoose-os-libs/mqtt
 
 tags:
   - c
   - mqtt
-  - gcp
   - queue
 
 manifest_version: 2017-09-29
