@@ -99,8 +99,10 @@ static void check_queue_timer_cb(void *arg) {
 
     if (content_meta != NULL && content != NULL) {
         char *subfolder = NULL;
-        json_scanf(content_meta, strlen(content_meta), "{subfolder: %Q}", &subfolder );
-        res = mgos_gcp_send_event_sub(mg_mk_str(subfolder), mg_mk_str(content));
+        json_scanf(content_meta, strlen(content_meta), "{subfolder: %Q}", &subfolder );       
+
+        res = mgos_mqtt_pub(mg_mk_str(subfolder), mg_mk_str(data->p), mg_mk_str(data->len), 1 /* qos */, 0 /* retain */);
+
         free(subfolder);
         free(content_meta);
         free(content);
@@ -192,7 +194,7 @@ bool mgos_mqtt_queue_gcp_send_event_subf(const char *subfolder, const char *json
     char *data = json_vasprintf(json_fmt, ap);
 
     if (data != NULL) {
-        res = mgos_gcp_send_event_sub(mg_mk_str(subfolder), mg_mk_str(data));
+        res = mgos_mqtt_pub(mg_mk_str(subfolder), mg_mk_str(data->p), mg_mk_str(data->len), 1 /* qos */, 0 /* retain */);
         free(data);
     }
   }
