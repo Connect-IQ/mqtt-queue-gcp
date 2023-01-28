@@ -1,4 +1,4 @@
-#include "mgos_gcp.h"
+#include "mgos_mqtt.h"
 
 #include "mgos_mqtt_queue_gcp.h"
 #include "common/cs_base64.h"
@@ -150,14 +150,14 @@ static void stop_queue_ev_cb(int ev, void *ev_data, void *userdata){
     (void) userdata;
 }
 static void remove_ev_handlers(void){
-    mgos_event_remove_handler(MGOS_GCP_EV_CONNECT, check_queue_ev_cb, NULL);
-    mgos_event_remove_handler(MGOS_GCP_EV_CLOSE, stop_queue_ev_cb, NULL);
+    mgos_event_remove_handler(MGOS_EVENT_CLOUD_CONNECTED, check_queue_ev_cb, NULL);
+    mgos_event_remove_handler(MGOS_EVENT_CLOUD_DISCONNECTED, stop_queue_ev_cb, NULL);
 }
 
 static void add_ev_handlers(void){
     remove_ev_handlers();
-    mgos_event_add_handler(MGOS_GCP_EV_CONNECT, check_queue_ev_cb, NULL);
-    mgos_event_add_handler(MGOS_GCP_EV_CLOSE, stop_queue_ev_cb, NULL);
+    mgos_event_add_handler(MGOS_EVENT_CLOUD_CONNECTED, check_queue_ev_cb, NULL);
+    mgos_event_add_handler(MGOS_EVENT_CLOUD_DISCONNECTED, stop_queue_ev_cb, NULL);
 }
 
 static int add_to_queue(const char *json_fmt, va_list ap, const char *subfolder){
