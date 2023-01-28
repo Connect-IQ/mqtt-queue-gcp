@@ -13,7 +13,7 @@
 #include "mgos_sys_config.h"
 #include "mgos_timers.h"
 
-static int s_max_queue = 10;
+static int s_max_queue = 0;
 static int s_current_queue_index = 0;
 static bool s_processing_queue = false;
 static mgos_timer_id s_queue_timer_id = MGOS_INVALID_TIMER_ID;
@@ -37,7 +37,7 @@ void static update_queue_index(int next){
     struct json_out out = JSON_OUT_FILE(fp);
     json_setf(content, strlen(content), &out, ".i", "%d", next);
     fclose(fp);
-    LOG(LL_DEBUG, ("%s %u", "GCP MQTT UPDATE QUEUE NEXT: ", next));
+    LOG(LL_DEBUG, ("%s %u", "MQTT UPDATE QUEUE NEXT: ", next));
     // json_prettify_file(tmp_file_name); // Optional
     rename(tmp_file_name, queue_file_name);
     if( content != NULL ){
@@ -74,7 +74,7 @@ static int get_next_queue_index(){
         next_queue = maybe_next;
     }
 
-    LOG(LL_DEBUG, ("%s %u", "GCP MQTT QUEUE GET NEXT: ", next_queue));
+    LOG(LL_DEBUG, ("%s %u", "MQTT QUEUE GET NEXT: ", next_queue));
     return next_queue;
 }
 
@@ -83,7 +83,7 @@ static void check_queue_timer_cb(void *arg) {
     bool res = false;
 
     if( index < 1 ){
-        LOG(LL_DEBUG, ("%s", "GCP MQTT QUEUE - NOTHING QUEUED"));
+        LOG(LL_DEBUG, ("%s", "MQTT QUEUE - NOTHING QUEUED"));
         remove_ev_handlers();
         clear_queue_timer();
         return;
@@ -101,7 +101,7 @@ static void check_queue_timer_cb(void *arg) {
         char *subfolder = NULL;
         json_scanf(content_meta, strlen(content_meta), "{subfolder: %Q}", &subfolder );       
 
-        res = mgos_mqtt_pub(mg_mk_str(subfolder), mg_mk_str(data->p), mg_mk_str(data->len), 1 /* qos */, 0 /* retain */);
+        res =  mgos_mqtt_pubf(subfolder, 1 /* qos */, false /* retain */, content);
 
         free(subfolder);
         free(content_meta);
@@ -118,11 +118,11 @@ static void check_queue_timer_cb(void *arg) {
 }
 
 static void check_queue_ev_cb(int ev, void *ev_data, void *userdata){
-    LOG(LL_DEBUG, ("%s", "GCP MQTT CONNECTED - CHECKING QUEUE" ));
+    LOG(LL_DEBUG, ("%s", "MQTT CONNECTED - CHECKING QUEUE" ));
 
     int index = get_current_queue_index();
     if( index < 1 ){
-        LOG(LL_DEBUG, ("%s", "GCP MQTT QUEUE - NOTHING QUEUED"));
+        LOG(LL_DEBUG, ("%s", "MQTT QUEUE - NOTHING QUEUED"));
         remove_ev_handlers();
         clear_queue_timer();
         return;
@@ -142,7 +142,7 @@ static void check_queue_ev_cb(int ev, void *ev_data, void *userdata){
 }
 
 static void stop_queue_ev_cb(int ev, void *ev_data, void *userdata){
-    LOG(LL_DEBUG, ("%s", "GCP MQTT DISCONNECTED - STOPPING QUEUE" ));
+    LOG(LL_DEBUG, ("%s", "MQTT DISCONNECTED - STOPPING QUEUE" ));
     clear_queue_timer();
     s_processing_queue = false;
     (void) ev;
@@ -162,7 +162,7 @@ static void add_ev_handlers(void){
 
 static int add_to_queue(const char *json_fmt, va_list ap, const char *subfolder){
     int next = get_next_queue_index();
-    LOG(LL_DEBUG, ("%s %u", "GCP MQTT QUEUE NOT CONNECTED, QUEUE FILE INDEX: ", next ));
+    LOG(LL_DEBUG, ("%s %u", "MQTT QUEUE NOT CONNECTED, QUEUE FILE INDEX: ", next ));
 
     update_queue_index(next);
 
@@ -171,7 +171,7 @@ static int add_to_queue(const char *json_fmt, va_list ap, const char *subfolder)
     mg_asprintf(&new_file, 0, "%s/queue_%d.json", s_data_path, next);
     mg_asprintf(&new_file_meta, 0, "%s/queue_%d_meta.json", s_data_path, next);
 
-    LOG(LL_DEBUG, ("%s %s", "GCP MQTT QUEUE NOT CONNECTED, ADD TO FILE: ", new_file));
+    LOG(LL_DEBUG, ("%s %s", "MQTT QUEUE NOT CONNECTED, ADD TO FILE: ", new_file));
     int result = json_vfprintf((const char*) new_file, json_fmt, ap);
     json_fprintf((const char *) new_file_meta, "{ subfolder: %Q }", subfolder);
 
@@ -188,13 +188,13 @@ bool mgos_mqtt_queue_gcp_send_event_subf(const char *subfolder, const char *json
   va_start(ap, json_fmt);
 
   if ( ! mgos_mqtt_global_is_connected() ){
-      LOG(LL_DEBUG, ("%s", "GCP MQTT QUEUE NOT CONNECTED, QUEUE FILE"));
+      LOG(LL_DEBUG, ("%s", "MQTT QUEUE NOT CONNECTED, QUEUE FILE"));
       add_to_queue( json_fmt, ap, subfolder );
   } else {
     char *data = json_vasprintf(json_fmt, ap);
 
     if (data != NULL) {
-        res = mgos_mqtt_pub(mg_mk_str(subfolder), mg_mk_str(data->p), mg_mk_str(data->len), 1 /* qos */, 0 /* retain */);
+        res =  mgos_mqtt_pubf(subfolder, 1 /* qos */, false /* retain */, json_fmt);
         free(data);
     }
   }
@@ -207,10 +207,10 @@ bool mgos_mqtt_queue_gcp_init(void){
     const char *dataPath = mgos_sys_config_get_gcp_queue_data_path();
     s_data_path = (dataPath == NULL) ? "" : dataPath;
 
-    // if( mgos_sys_config_mqttqgcp_enable() ){
-    //     s_max_queue = mgos_sys_config_mqttqgcp_max();
+    if( mgos_sys_config_get_gcp_queue_enable() ){
+        s_max_queue = mgos_sys_config_get_gcp_queue_max();
         add_ev_handlers();
-    // }
+    }
      
     return true;
 }
