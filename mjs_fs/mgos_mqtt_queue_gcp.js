@@ -1,5 +1,5 @@
 let MQTT_queue = {
-  _pub: ffi('bool mgos_mqtt_queue_gcp_send_event_subf(const char *subfolder, const char *json_fmt, ...)'),
+  _pub: ffi('bool mgos_mqtt_queue_gcp_send_event_subf(char *, void *)'),
 
   // ## **`MQTT_queue.pub(topic, message)`**
   // Publish message to a topic. 
