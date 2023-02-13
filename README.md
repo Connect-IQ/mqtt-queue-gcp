@@ -33,25 +33,19 @@ Myles McNamara ( https://smyl.es )
 Check the `mos.yml` file for latest settings, all settings listed below are defaults
 
 ```yaml
+  - [ "gcp", "o", {title: "MQTT Queue configuration"}]
+  - [ "gcp.queue", "o", {title: "MQTT Queue configuration"}]
+  - [ "gcp.queue.data_path", "s", "", {title: "Data path (if using external flash) to store queue files (WITHOUT trailing slash) ADD queuemeta.json to this path !!"}]
   - [ "gcp.queue.enable", "b", true, {title: "Enable MQTT Queue on device boot (to process queue and set event handler on boot) "}]
-  - [ "gcp.queue.max", "i", 10, {title: "Maximum number of files to keep in queue (if queue exceeds this limit, oldest files will be overwritten)"}]
-  - [ "gcp.queue.delay", "i", 5, {title: "Delay between sending each queueud MQTT event upon reconnect"}]
-  - [ "gcp.queue.data", "s", "", {title: "Custom location to store queue files (only should be used if you have created ext partition that is mounted)"}]
+  - [ "gcp.queue.max", "i", 20, {title: "Maximum number of files to keep in queue (if queue exceeds this limit, oldest files will be overwritten)"}]
+  - [ "gcp.queue.interval", "i", 5, {title: "Interval in milliseconds between sending each queueud MQTT event upon reconnect"}]
 ```
 
 ## Installation/Usage
 Add this lib your `mos.yml` file under `libs:`
 
 ```yaml
-  - origin: https://github.com/tripflex/mqtt-queue-gcp
-```
-
-### Use specific branch of library
-To use a specific branch of this library (as example, `dev`), you need to specify the `version` below the library
-
-```yaml
-  - origin: https://github.com/tripflex/mqtt-queue-gcp
-   version: dev
+  - location: https://github.com/Connect-IQ/mqtt-queue-gcp
 ```
 
 ## How it works
@@ -76,9 +70,25 @@ When the device reconnects, it will read the `queuemeta.json` file to get the cu
 bool mgos_mqtt_queue_gcp_send_event_subf(const char *subfolder, const char *json_fmt, ...);
 ```
 
-## Changelog
+```mJS
+MQTT_queue.pub(topic, message);
 
-**1.0.0** TBD - Initial release
+Example:
+  
+  load('mgos_mqtt_queue_gcp.js');
+
+  let mqtt_message = {};
+  mqtt_message.one = i;
+  mqtt_message.two = i;
+  mqtt_message.three = i;
+  
+  let message = JSON.stringify(mqtt_message);
+  let topic = 'test/99/' + JSON.stringify(i);
+  
+  print('== Publishing to ' + topic + ':', message);
+  MQTT_queue.pub(topic, message);
+  i++;
+
 
 ## License
 Apache 2.0
