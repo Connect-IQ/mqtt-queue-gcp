@@ -14,6 +14,7 @@
 #include "mgos_timers.h"
 
 static int s_max_queue = 0;
+static int s_queue_interval = 5;
 static int s_current_queue_index = 0;
 static bool s_processing_queue = false;
 static mgos_timer_id s_queue_timer_id = MGOS_INVALID_TIMER_ID;
@@ -148,7 +149,7 @@ static void check_queue_ev_cb(int ev, void *ev_data, void *userdata){
         clear_queue_timer();
         LOG(LL_DEBUG, ("%s", "MQTT TIMER STARTED" ));
         // Use 5 second default timer for now
-        s_queue_timer_id = mgos_set_timer(5 * 1000, true, check_queue_timer_cb, NULL);
+        s_queue_timer_id = mgos_set_timer(s_queue_interval * 1000, true, check_queue_timer_cb, NULL);
         s_processing_queue = true;
     }
     else{
@@ -278,9 +279,24 @@ bool mgos_mqtt_queue_send_event_pub_json(const char *subfolder, const char *json
 bool mgos_mqtt_queue_gcp_init(void){
     const char *dataPath = mgos_sys_config_get_gcp_queue_data_path();
     s_data_path = (dataPath == NULL) ? "" : dataPath;
+    char *queue_file = NULL;
+    mg_asprintf(&queue_file, 0, "%s/queuemeta.json", s_data_path);
+    FILE *fp = NULL;
+    fp = fopen(queue_file, "r");
+    if (fp != NULL) {
+        fclose(fp);
+    }
+    else {
+        fclose(fp);
+        fp = fopen(queue_file, "w");
+        fputs("{\"i\": 0}",fp);
+        fputc('\n', fp);
+        fclose(fp);
+        }
 
     if( mgos_sys_config_get_gcp_queue_enable() ){
         s_max_queue = mgos_sys_config_get_gcp_queue_max();
+        s_queue_interval = mgos_sys_config_get_gcp_queue_interval();
         add_ev_handlers();
     }
      
