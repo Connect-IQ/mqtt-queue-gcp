@@ -12,6 +12,8 @@ extern "C"
 
 bool mgos_mqtt_queue_gcp_send_event_subf(const char *subfolder, const char *json_fmt, ...);
 
+bool mgos_mqtt_queue_send_event_pub_json(const char *subfolder, const char *json_fmt);
+
 #ifdef __cplusplus
 }
 #endif
