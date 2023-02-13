@@ -38,7 +38,7 @@ Check the `mos.yml` file for latest settings, all settings listed below are defa
   - [ "gcp.queue.data_path", "s", "", {title: "Data path (if using external flash) to store queue files (WITHOUT trailing slash) ADD queuemeta.json to this path !!"}]
   - [ "gcp.queue.enable", "b", true, {title: "Enable MQTT Queue on device boot (to process queue and set event handler on boot) "}]
   - [ "gcp.queue.max", "i", 20, {title: "Maximum number of files to keep in queue (if queue exceeds this limit, oldest files will be overwritten)"}]
-  - [ "gcp.queue.interval", "i", 5, {title: "Interval in milliseconds between sending each queueud MQTT event upon reconnect"}]
+  - [ "gcp.queue.interval", "i", 5, {title: "Interval in seconds between sending each queueud MQTT event upon reconnect"}]
 ```
 
 ## Installation/Usage
