@@ -24,6 +24,8 @@ static void remove_ev_handlers(void);
 
 static void clear_queue_timer(void){
     if( s_queue_timer_id != MGOS_INVALID_TIMER_ID){
+        LOG(LL_DEBUG, ("%s", "MQTT Timer STOP" ));
+        s_processing_queue = false;
         mgos_clear_timer(s_queue_timer_id);
     }
     s_queue_timer_id = MGOS_INVALID_TIMER_ID;
@@ -31,7 +33,13 @@ static void clear_queue_timer(void){
 
 void static update_queue_index(int next){
     s_current_queue_index = next;
-    const char *queue_file_name = "queuemeta.json", *tmp_file_name = "tmpqueuemeta.json";
+    
+    char *queue_file_name;
+    char *tmp_file_name;
+
+    mg_asprintf(&queue_file_name, 0, "%s/queuemeta.json", s_data_path);
+    mg_asprintf(&tmp_file_name, 0, "%s/tmpqueuemeta.json", s_data_path);
+    
     char *content = json_fread(queue_file_name);
     FILE *fp = fopen(tmp_file_name, "w");
     struct json_out out = JSON_OUT_FILE(fp);
@@ -52,7 +60,11 @@ static int get_current_queue_index(void){
     // }
 
     struct mqtt_queue_meta { int i; } c = { .i = 0 };
-    char *content = json_fread("queuemeta.json");
+
+    char *queue_file;
+    mg_asprintf(&queue_file, 0, "%s/queuemeta.json", s_data_path);
+    char *content = json_fread(queue_file);
+
     json_scanf(content, strlen(content), "{i: %d }", &c.i );
 
     if( content != NULL ){
@@ -81,6 +93,7 @@ static int get_next_queue_index(){
 static void check_queue_timer_cb(void *arg) {
     int index = get_current_queue_index();
     bool res = false;
+    LOG(LL_DEBUG, ("%s", "QUEUE TIMER - RUN"));
 
     if( index < 1 ){
         LOG(LL_DEBUG, ("%s", "MQTT QUEUE - NOTHING QUEUED"));
@@ -129,12 +142,17 @@ static void check_queue_ev_cb(int ev, void *ev_data, void *userdata){
         return;
     }
 
+    LOG(LL_DEBUG, ("%s", "MQTT TIMER START ??" ));
     // In case connect gets called multiple times
     if( ! s_processing_queue ){
         clear_queue_timer();
+        LOG(LL_DEBUG, ("%s", "MQTT TIMER STARTED" ));
         // Use 5 second default timer for now
-        s_queue_timer_id = mgos_set_timer(1 * 1000, true, check_queue_timer_cb, NULL);
+        s_queue_timer_id = mgos_set_timer(5 * 1000, true, check_queue_timer_cb, NULL);
         s_processing_queue = true;
+    }
+    else{
+        LOG(LL_DEBUG, ("%s", "MQTT TIMER NOT STARTED !!! " ));
     }
 
     (void) ev;
@@ -175,32 +193,8 @@ static int add_to_queue(const char *json_fmt, va_list ap, const char *subfolder)
     LOG(LL_DEBUG, ("%s %s", "MQTT QUEUE NOT CONNECTED, ADD TO FILE: ", new_file));
     LOG(LL_DEBUG, ("%s %s", "****SAVED****: ", json_fmt));
     int result = json_vfprintf((const char*) new_file, json_fmt, ap);
-//Rfal
-
-//   int res = -1;
-//   FILE *fp = fopen(new_file, "wb");
-//   if (fp != NULL) {
-//     struct json_out out = JSON_OUT_FILE(fp);
-//     res = json_vprintf(&out, fmt, ap);
-//     fputc('\n', fp);
-//     fclose(fp);
-
-//end
-
 
     json_fprintf((const char *) new_file_meta, "{ subfolder: %Q }", subfolder);
-
-//Add Rafal
-    char *content = json_fread(new_file);
-    char *content_meta = json_fread(new_file_meta);
-
-    LOG(LL_DEBUG, ("%s %s", "****In file****: ", content));
-    LOG(LL_DEBUG, ("%s %s", "****In file****: ", content_meta));
-
-//end
-    free(new_file);
-    free(new_file_meta);
-
     add_ev_handlers();
     return result;
 }
@@ -216,10 +210,9 @@ static int add_to_queue_json(const char *json_fmt, const char *subfolder){
     mg_asprintf(&new_file, 0, "%s/queue_%d.json", s_data_path, next);
     mg_asprintf(&new_file_meta, 0, "%s/queue_%d_meta.json", s_data_path, next);
 
-    LOG(LL_DEBUG, ("%s %s", "MQTT QUEUE NOT CONNECTED, ADD TO FILE: ", new_file));
-    LOG(LL_DEBUG, ("%s %s", "****SAVED****: ", json_fmt));
+    // LOG(LL_DEBUG, ("%s %s", "MQTT QUEUE NOT CONNECTED, ADD TO FILE: ", new_file));
+    // LOG(LL_DEBUG, ("%s %s", "****SAVED****: ", json_fmt));
 
-//    int result = json_fprintf((const char*) new_file, json_fmt);
     int result = 0;
     FILE *fp = NULL;
     fp = fopen(new_file, "w");
@@ -232,15 +225,10 @@ static int add_to_queue_json(const char *json_fmt, const char *subfolder){
     } 
 
     json_fprintf((const char *) new_file_meta, "{ subfolder: %Q }", subfolder);
-
-//Add Rafal
-    char *content = json_fread(new_file);
-    char *content_meta = json_fread(new_file_meta);
-
-    LOG(LL_DEBUG, ("%s %s", "****In file****: ", content));
-    LOG(LL_DEBUG, ("%s %s", "****In file****: ", content_meta));
-
-//end
+//     char *content = json_fread(new_file);
+//     char *content_meta = json_fread(new_file_meta);
+//     LOG(LL_DEBUG, ("%s %s", "****In file****: ", content));
+//     LOG(LL_DEBUG, ("%s %s", "****In file****: ", content_meta));
     free(new_file);
     free(new_file_meta);
 
@@ -255,8 +243,8 @@ bool mgos_mqtt_queue_gcp_send_event_subf(const char *subfolder, const char *json
 
   if ( ! mgos_mqtt_global_is_connected() ){
       LOG(LL_DEBUG, ("%s", "MQTT QUEUE NOT CONNECTED, QUEUE FILE"));
-      LOG(LL_DEBUG, ("%s", json_fmt));
-      LOG(LL_DEBUG, ("%s", subfolder));
+    //   LOG(LL_DEBUG, ("%s", json_fmt));
+    //   LOG(LL_DEBUG, ("%s", subfolder));
       add_to_queue( json_fmt, ap, subfolder );
   } else {
 
@@ -276,8 +264,8 @@ bool mgos_mqtt_queue_send_event_pub_json(const char *subfolder, const char *json
   bool res = false;
   if ( ! mgos_mqtt_global_is_connected() ){
       LOG(LL_DEBUG, ("%s", "MQTT QUEUE NOT CONNECTED, QUEUE FILE"));
-      LOG(LL_DEBUG, ("%s", json_fmt));
-      LOG(LL_DEBUG, ("%s", subfolder));
+    //   LOG(LL_DEBUG, ("%s", json_fmt));
+    //   LOG(LL_DEBUG, ("%s", subfolder));
       add_to_queue_json( json_fmt, subfolder );
   } else {
     if (json_fmt != NULL) {        
