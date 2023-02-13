@@ -205,6 +205,49 @@ static int add_to_queue(const char *json_fmt, va_list ap, const char *subfolder)
     return result;
 }
 
+static int add_to_queue_json(const char *json_fmt, const char *subfolder){
+    int next = get_next_queue_index();
+    LOG(LL_DEBUG, ("%s %u", "MQTT QUEUE NOT CONNECTED, QUEUE FILE INDEX: ", next ));
+
+    update_queue_index(next);
+
+    char *new_file = NULL;
+    char *new_file_meta = NULL;
+    mg_asprintf(&new_file, 0, "%s/queue_%d.json", s_data_path, next);
+    mg_asprintf(&new_file_meta, 0, "%s/queue_%d_meta.json", s_data_path, next);
+
+    LOG(LL_DEBUG, ("%s %s", "MQTT QUEUE NOT CONNECTED, ADD TO FILE: ", new_file));
+    LOG(LL_DEBUG, ("%s %s", "****SAVED****: ", json_fmt));
+
+//    int result = json_fprintf((const char*) new_file, json_fmt);
+    int result = 0;
+    FILE *fp = NULL;
+    fp = fopen(new_file, "w");
+    if (fp != NULL) {
+        fputs(json_fmt,fp);
+        fputc('\n', fp);
+        // fprintf(fp, "%s %s %s %d", "We", "are", "in", 2012);
+        fclose(fp);
+        result = 1;
+    } 
+
+    json_fprintf((const char *) new_file_meta, "{ subfolder: %Q }", subfolder);
+
+//Add Rafal
+    char *content = json_fread(new_file);
+    char *content_meta = json_fread(new_file_meta);
+
+    LOG(LL_DEBUG, ("%s %s", "****In file****: ", content));
+    LOG(LL_DEBUG, ("%s %s", "****In file****: ", content_meta));
+
+//end
+    free(new_file);
+    free(new_file_meta);
+
+    add_ev_handlers();
+    return result;
+}
+
 bool mgos_mqtt_queue_gcp_send_event_subf(const char *subfolder, const char *json_fmt, ...) {
   bool res = false;
   va_list ap;
@@ -226,6 +269,21 @@ bool mgos_mqtt_queue_gcp_send_event_subf(const char *subfolder, const char *json
   }
 
   va_end(ap);
+  return res;
+}
+
+bool mgos_mqtt_queue_send_event_pub_json(const char *subfolder, const char *json_fmt) {
+  bool res = false;
+  if ( ! mgos_mqtt_global_is_connected() ){
+      LOG(LL_DEBUG, ("%s", "MQTT QUEUE NOT CONNECTED, QUEUE FILE"));
+      LOG(LL_DEBUG, ("%s", json_fmt));
+      LOG(LL_DEBUG, ("%s", subfolder));
+      add_to_queue_json( json_fmt, subfolder );
+  } else {
+    if (json_fmt != NULL) {        
+        res =  mgos_mqtt_pub(subfolder, json_fmt, strlen(json_fmt), 1, false);
+    }
+  }
   return res;
 }
 
